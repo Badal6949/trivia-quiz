@@ -1,0 +1,1703 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Daily Trivia Streak Quiz</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+  :root {
+    --bg: #ffffff;
+    --bg-secondary: #f0f2f5;
+    --text: #000000;
+    --text-secondary: #666666;
+    --accent: #3390ec;
+    --accent-hover: #2b7fd4;
+    --correct: #4caf50;
+    --wrong: #f44336;
+    --card-bg: #ffffff;
+    --border: #e0e0e0;
+    --shadow: 0 2px 8px rgba(0,0,0,0.1);
+    --flame: #ff6b35;
+    --coin: #ffc107;
+    --hint: #9c27b0;
+    --freeze: #00bcd4;
+  }
+
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  .screen {
+    display: none;
+    padding: 16px;
+    max-width: 480px;
+    margin: 0 auto;
+    min-height: 100vh;
+    animation: fadeIn 0.3s ease;
+  }
+
+  .screen.active { display: block; }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+  }
+
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-5px); }
+    75% { transform: translateX(5px); }
+  }
+
+  @keyframes correctPop {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.08); }
+    100% { transform: scale(1); }
+  }
+
+  @keyframes confetti {
+    0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+    100% { transform: translateY(-200px) rotate(720deg); opacity: 0; }
+  }
+
+  /* Home Screen */
+  .user-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 20px;
+    padding: 16px;
+    background: var(--card-bg);
+    border-radius: 16px;
+    box-shadow: var(--shadow);
+  }
+
+  .avatar {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: var(--accent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 24px;
+    font-weight: 700;
+    flex-shrink: 0;
+    overflow: hidden;
+  }
+
+  .avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .user-info h2 {
+    font-size: 18px;
+    font-weight: 700;
+    margin-bottom: 2px;
+  }
+
+  .user-info p {
+    font-size: 13px;
+    color: var(--text-secondary);
+  }
+
+  .stats-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+
+  .stat-card {
+    background: var(--card-bg);
+    border-radius: 14px;
+    padding: 14px 10px;
+    text-align: center;
+    box-shadow: var(--shadow);
+  }
+
+  .stat-icon {
+    font-size: 22px;
+    margin-bottom: 4px;
+  }
+
+  .stat-value {
+    font-size: 22px;
+    font-weight: 800;
+    line-height: 1.2;
+  }
+
+  .stat-label {
+    font-size: 11px;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .multiplier-badge {
+    display: inline-block;
+    background: linear-gradient(135deg, #ff6b35, #ff9a56);
+    color: white;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 700;
+    margin-top: 4px;
+  }
+
+  .play-btn {
+    width: 100%;
+    padding: 18px;
+    border: none;
+    border-radius: 16px;
+    background: linear-gradient(135deg, var(--accent), #5eb5f7);
+    color: white;
+    font-size: 18px;
+    font-weight: 700;
+    cursor: pointer;
+    margin-bottom: 16px;
+    transition: all 0.2s;
+    box-shadow: 0 4px 15px rgba(51, 144, 236, 0.4);
+  }
+
+  .play-btn:hover { transform: translateY(-1px); }
+  .play-btn:active { transform: translateY(1px); }
+
+  .play-btn:disabled {
+    background: var(--bg-secondary);
+    color: var(--text-secondary);
+    box-shadow: none;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  .countdown-text {
+    font-size: 14px;
+    color: var(--text-secondary);
+    text-align: center;
+    margin-top: 8px;
+  }
+
+  .shop-section {
+    margin-bottom: 20px;
+  }
+
+  .section-title {
+    font-size: 16px;
+    font-weight: 700;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .shop-items {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .shop-item {
+    background: var(--card-bg);
+    border-radius: 14px;
+    padding: 14px;
+    box-shadow: var(--shadow);
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: 2px solid transparent;
+  }
+
+  .shop-item:hover { border-color: var(--accent); }
+  .shop-item:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .shop-item-icon { font-size: 28px; margin-bottom: 6px; }
+  .shop-item-name { font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+  .shop-item-cost {
+    font-size: 12px;
+    color: var(--coin);
+    font-weight: 700;
+  }
+
+  .shop-item-owned {
+    font-size: 11px;
+    color: var(--correct);
+    font-weight: 600;
+  }
+
+  .leaderboard {
+    background: var(--card-bg);
+    border-radius: 14px;
+    padding: 16px;
+    box-shadow: var(--shadow);
+  }
+
+  .leaderboard-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--bg-secondary);
+  }
+
+  .leaderboard-item:last-child { border-bottom: none; }
+
+  .lb-rank {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--bg-secondary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+
+  .lb-rank.gold { background: #ffd700; color: #000; }
+  .lb-rank.silver { background: #c0c0c0; color: #000; }
+  .lb-rank.bronze { background: #cd7f32; color: #fff; }
+
+  .lb-name { flex: 1; font-size: 14px; font-weight: 600; }
+  .lb-score { font-size: 14px; color: var(--text-secondary); }
+
+  /* Quiz Screen */
+  .quiz-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+  }
+
+  .quiz-progress {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-secondary);
+  }
+
+  .quiz-timer {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    border: 3px solid var(--accent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    font-weight: 800;
+    position: relative;
+  }
+
+  .quiz-timer.warning { border-color: var(--wrong); color: var(--wrong); animation: pulse 1s infinite; }
+
+  .timer-ring {
+    position: absolute;
+    top: -3px;
+    left: -3px;
+    width: 48px;
+    height: 48px;
+  }
+
+  .timer-ring circle {
+    fill: none;
+    stroke-width: 3;
+    cx: 24;
+    cy: 24;
+    r: 21;
+  }
+
+  .timer-bg { stroke: var(--bg-secondary); }
+
+  .timer-progress {
+    stroke: var(--accent);
+    stroke-dasharray: 132;
+    stroke-dashoffset: 0;
+    transform: rotate(-90deg);
+    transform-origin: center;
+    transition: stroke-dashoffset 1s linear, stroke 0.3s;
+  }
+
+  .timer-progress.warning { stroke: var(--wrong); }
+
+  .hint-btn {
+    padding: 8px 14px;
+    border: 2px solid var(--hint);
+    border-radius: 20px;
+    background: transparent;
+    color: var(--hint);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .hint-btn:hover { background: var(--hint); color: white; }
+  .hint-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .question-card {
+    background: var(--card-bg);
+    border-radius: 16px;
+    padding: 24px 20px;
+    box-shadow: var(--shadow);
+    margin-bottom: 16px;
+    min-height: 100px;
+  }
+
+  .question-category {
+    font-size: 12px;
+    color: var(--accent);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 8px;
+  }
+
+  .question-text {
+    font-size: 18px;
+    font-weight: 700;
+    line-height: 1.4;
+  }
+
+  .options-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .option-btn {
+    width: 100%;
+    padding: 16px 18px;
+    border: 2px solid var(--border);
+    border-radius: 14px;
+    background: var(--card-bg);
+    color: var(--text);
+    font-size: 15px;
+    font-weight: 500;
+    text-align: left;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .option-btn:hover { border-color: var(--accent); background: rgba(51, 144, 236, 0.05); }
+
+  .option-label {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: var(--bg-secondary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+
+  .option-btn.correct {
+    border-color: var(--correct);
+    background: rgba(76, 175, 80, 0.1);
+    animation: correctPop 0.3s ease;
+  }
+
+  .option-btn.correct .option-label {
+    background: var(--correct);
+    color: white;
+  }
+
+  .option-btn.wrong {
+    border-color: var(--wrong);
+    background: rgba(244, 67, 54, 0.1);
+    animation: shake 0.3s ease;
+  }
+
+  .option-btn.wrong .option-label {
+    background: var(--wrong);
+    color: white;
+  }
+
+  .option-btn:disabled { cursor: default; opacity: 0.7; }
+  .option-btn.correct:disabled, .option-btn.wrong:disabled { opacity: 1; }
+
+  .option-btn.eliminated {
+    opacity: 0.3;
+    cursor: not-allowed;
+    border-style: dashed;
+  }
+
+  /* Results Screen */
+  .results-card {
+    background: var(--card-bg);
+    border-radius: 20px;
+    padding: 30px 24px;
+    box-shadow: var(--shadow);
+    text-align: center;
+    margin-bottom: 16px;
+  }
+
+  .results-emoji {
+    font-size: 56px;
+    margin-bottom: 12px;
+  }
+
+  .results-score {
+    font-size: 48px;
+    font-weight: 900;
+    margin-bottom: 4px;
+  }
+
+  .results-score span { color: var(--text-secondary); font-size: 24px; }
+
+  .results-points {
+    font-size: 20px;
+    color: var(--flame);
+    font-weight: 700;
+    margin-bottom: 16px;
+  }
+
+  .results-details {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+
+  .result-detail {
+    padding: 12px;
+    background: var(--bg-secondary);
+    border-radius: 12px;
+  }
+
+  .result-detail-value {
+    font-size: 20px;
+    font-weight: 800;
+  }
+
+  .result-detail-label {
+    font-size: 11px;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    margin-top: 2px;
+  }
+
+  .share-btn {
+    width: 100%;
+    padding: 16px;
+    border: none;
+    border-radius: 14px;
+    background: linear-gradient(135deg, #3390ec, #5eb5f7);
+    color: white;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    margin-bottom: 10px;
+    transition: all 0.2s;
+    box-shadow: 0 4px 15px rgba(51, 144, 236, 0.4);
+  }
+
+  .share-btn:active { transform: scale(0.98); }
+
+  .home-btn {
+    width: 100%;
+    padding: 14px;
+    border: 2px solid var(--border);
+    border-radius: 14px;
+    background: transparent;
+    color: var(--text);
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .home-btn:hover { background: var(--bg-secondary); }
+
+  /* Result card for sharing */
+  #share-card {
+    position: absolute;
+    left: -9999px;
+    top: -9999px;
+    width: 600px;
+    background: linear-gradient(135deg, #1a1a2e, #16213e, #0f3460);
+    border-radius: 20px;
+    padding: 40px;
+    color: white;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  }
+
+  #share-card .card-name {
+    font-size: 28px;
+    font-weight: 800;
+    margin-bottom: 8px;
+  }
+
+  #share-card .card-streak {
+    font-size: 16px;
+    color: #ff9a56;
+    margin-bottom: 24px;
+  }
+
+  #share-card .card-score {
+    font-size: 72px;
+    font-weight: 900;
+    line-height: 1;
+    margin-bottom: 8px;
+  }
+
+  #share-card .card-points {
+    font-size: 20px;
+    color: #ffc107;
+    font-weight: 600;
+    margin-bottom: 24px;
+  }
+
+  #share-card .card-divider {
+    border: none;
+    border-top: 1px solid rgba(255,255,255,0.15);
+    margin-bottom: 16px;
+  }
+
+  #share-card .card-footer {
+    font-size: 14px;
+    color: rgba(255,255,255,0.5);
+  }
+
+  /* Toast */
+  .toast {
+    position: fixed;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%) translateY(100px);
+    background: rgba(0,0,0,0.85);
+    color: white;
+    padding: 12px 24px;
+    border-radius: 12px;
+    font-size: 14px;
+    font-weight: 600;
+    z-index: 1000;
+    transition: transform 0.3s ease;
+    white-space: nowrap;
+  }
+
+  .toast.show { transform: translateX(-50%) translateY(0); }
+
+  /* Confetti */
+  .confetti-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 999;
+  }
+
+  .confetti-piece {
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    border-radius: 2px;
+    animation: confetti 1.5s ease forwards;
+  }
+</style>
+</head>
+<body>
+
+<!-- HOME SCREEN -->
+<div id="screen-home" class="screen active">
+  <div class="user-header">
+    <div class="avatar" id="user-avatar"></div>
+    <div class="user-info">
+      <h2 id="user-name">Player</h2>
+      <p id="user-handle">@player</p>
+    </div>
+  </div>
+
+  <div class="stats-row">
+    <div class="stat-card">
+      <div class="stat-icon">🪙</div>
+      <div class="stat-value" id="home-coins">0</div>
+      <div class="stat-label">Coins</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon">🔥</div>
+      <div class="stat-value" id="home-streak">0</div>
+      <div class="stat-label">Streak</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon">⚡</div>
+      <div class="stat-value" id="home-multiplier">x1</div>
+      <div class="stat-label">Multiplier</div>
+      <div class="multiplier-badge" id="home-mult-badge">Active</div>
+    </div>
+  </div>
+
+  <button class="play-btn" id="play-btn" onclick="startQuiz()">
+    ▶ Play Today's Quiz
+  </button>
+  <div class="countdown-text" id="countdown-text"></div>
+
+  <div class="shop-section">
+    <div class="section-title">🛒 Power-Ups</div>
+    <div class="shop-items">
+      <button class="shop-item" id="shop-hint" onclick="buyHint()">
+        <div class="shop-item-icon">💡</div>
+        <div class="shop-item-name">5x Hints</div>
+        <div class="shop-item-cost">🪙 15 each</div>
+        <div class="shop-item-owned" id="hint-count"></div>
+      </button>
+      <button class="shop-item" id="shop-freeze" onclick="buyFreeze()">
+        <div class="shop-item-icon">🧊</div>
+        <div class="shop-item-name">Streak Freeze</div>
+        <div class="shop-item-cost">🪙 50</div>
+        <div class="shop-item-owned" id="freeze-status"></div>
+      </button>
+    </div>
+  </div>
+
+  <div class="leaderboard">
+    <div class="section-title">🏆 Top Streaks</div>
+    <div id="leaderboard-list"></div>
+  </div>
+</div>
+
+<!-- QUIZ SCREEN -->
+<div id="screen-quiz" class="screen">
+  <div class="quiz-header">
+    <div class="quiz-progress" id="quiz-progress">1 / 5</div>
+    <div class="quiz-timer" id="quiz-timer">
+      <svg class="timer-ring">
+        <circle class="timer-bg"></circle>
+        <circle class="timer-progress" id="timer-progress"></circle>
+      </svg>
+      <span id="timer-text">15</span>
+    </div>
+    <button class="hint-btn" id="use-hint-btn" onclick="useHint()">💡 Hint</button>
+  </div>
+
+  <div class="question-card">
+    <div class="question-category" id="q-category"></div>
+    <div class="question-text" id="q-text"></div>
+  </div>
+
+  <div class="options-grid" id="options-grid"></div>
+</div>
+
+<!-- RESULTS SCREEN -->
+<div id="screen-results" class="screen">
+  <div class="results-card">
+    <div class="results-emoji" id="results-emoji">🎉</div>
+    <div class="results-score" id="results-score">0<span>/5</span></div>
+    <div class="results-points" id="results-points">+0 points</div>
+
+    <div class="results-details">
+      <div class="result-detail">
+        <div class="result-detail-value" id="res-correct">0</div>
+        <div class="result-detail-label">Correct</div>
+      </div>
+      <div class="result-detail">
+        <div class="result-detail-value" id="res-streak">0</div>
+        <div class="result-detail-label">Streak 🔥</div>
+      </div>
+      <div class="result-detail">
+        <div class="result-detail-value" id="res-mult">x1</div>
+        <div class="result-detail-label">Multiplier</div>
+      </div>
+    </div>
+  </div>
+
+  <button class="share-btn" onclick="shareResult()">📤 Share to Telegram</button>
+  <button class="home-btn" onclick="goHome()">← Back to Home</button>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<!-- Confetti container -->
+<div class="confetti-container" id="confetti-container"></div>
+
+<!-- Share card (offscreen, for canvas rendering) -->
+<div id="share-card">
+  <div class="card-name" id="card-name">Player</div>
+  <div class="card-streak" id="card-streak">🔥 0 day streak</div>
+  <div class="card-score" id="card-score">0/5</div>
+  <div class="card-points" id="card-points">+0 points</div>
+  <hr class="card-divider">
+  <div class="card-footer">Daily Trivia Streak Quiz — Play in Telegram</div>
+</div>
+
+<script>
+// ============================================================
+// QUESTION BANK — Add/edit questions here. Structure:
+//   { id, question, options: [4 strings], correctAnswerIndex: 0-3, category, difficulty }
+// ============================================================
+const QUESTION_BANK = [
+  // Science
+  { id: 1, question: "What planet is known as the Red Planet?", options: ["Venus", "Mars", "Jupiter", "Saturn"], correctAnswerIndex: 1, category: "Science", difficulty: "easy" },
+  { id: 2, question: "What is the chemical symbol for gold?", options: ["Go", "Gd", "Au", "Ag"], correctAnswerIndex: 2, category: "Science", difficulty: "easy" },
+  { id: 3, question: "How many bones are in the adult human body?", options: ["186", "206", "216", "196"], correctAnswerIndex: 1, category: "Science", difficulty: "medium" },
+  { id: 4, question: "What gas do plants absorb from the atmosphere?", options: ["Oxygen", "Nitrogen", "Carbon Dioxide", "Hydrogen"], correctAnswerIndex: 2, category: "Science", difficulty: "easy" },
+  { id: 5, question: "What is the speed of light in km/s (approximately)?", options: ["200,000", "300,000", "400,000", "150,000"], correctAnswerIndex: 1, category: "Science", difficulty: "medium" },
+  { id: 6, question: "Which element has the atomic number 1?", options: ["Helium", "Oxygen", "Carbon", "Hydrogen"], correctAnswerIndex: 3, category: "Science", difficulty: "easy" },
+  { id: 7, question: "What is the hardest natural substance on Earth?", options: ["Titanium", "Diamond", "Quartz", "Topaz"], correctAnswerIndex: 1, category: "Science", difficulty: "medium" },
+
+  // Geography
+  { id: 8, question: "What is the largest ocean on Earth?", options: ["Atlantic", "Indian", "Arctic", "Pacific"], correctAnswerIndex: 3, category: "Geography", difficulty: "easy" },
+  { id: 9, question: "Which country has the most natural lakes?", options: ["USA", "Russia", "Canada", "Brazil"], correctAnswerIndex: 2, category: "Geography", difficulty: "hard" },
+  { id: 10, question: "What is the smallest country in the world by area?", options: ["Monaco", "Vatican City", "San Marino", "Liechtenstein"], correctAnswerIndex: 1, category: "Geography", difficulty: "medium" },
+  { id: 11, question: "Which river is the longest in the world?", options: ["Amazon", "Yangtze", "Mississippi", "Nile"], correctAnswerIndex: 3, category: "Geography", difficulty: "easy" },
+  { id: 12, question: "What is the capital of Australia?", options: ["Sydney", "Melbourne", "Canberra", "Brisbane"], correctAnswerIndex: 2, category: "Geography", difficulty: "medium" },
+  { id: 13, question: "Mount Everest is located on the border of which two countries?", options: ["India & China", "Nepal & China", "Nepal & India", "China & Pakistan"], correctAnswerIndex: 1, category: "Geography", difficulty: "medium" },
+
+  // History
+  { id: 14, question: "In what year did World War II end?", options: ["1943", "1944", "1945", "1946"], correctAnswerIndex: 2, category: "History", difficulty: "easy" },
+  { id: 15, question: "Who was the first person to walk on the Moon?", options: ["Buzz Aldrin", "Neil Armstrong", "Michael Collins", "Yuri Gagarin"], correctAnswerIndex: 1, category: "History", difficulty: "easy" },
+  { id: 16, question: "Which empire was ruled by Genghis Khan?", options: ["Ottoman Empire", "Mongol Empire", "Roman Empire", "Persian Empire"], correctAnswerIndex: 1, category: "History", difficulty: "medium" },
+  { id: 17, question: "What year did the Berlin Wall fall?", options: ["1987", "1988", "1989", "1990"], correctAnswerIndex: 2, category: "History", difficulty: "medium" },
+  { id: 18, question: "Which ancient civilization built the pyramids of Giza?", options: ["Romans", "Greeks", "Mayans", "Egyptians"], correctAnswerIndex: 3, category: "History", difficulty: "easy" },
+
+  // Pop Culture
+  { id: 19, question: "Which movie franchise features a character named 'Darth Vader'?", options: ["Star Trek", "Star Wars", "Guardians of the Galaxy", "Dune"], correctAnswerIndex: 1, category: "Pop Culture", difficulty: "easy" },
+  { id: 20, question: "What band performed the song 'Bohemian Rhapsody'?", options: ["The Beatles", "Led Zeppelin", "Queen", "Pink Floyd"], correctAnswerIndex: 2, category: "Pop Culture", difficulty: "easy" },
+  { id: 21, question: "In the Harry Potter series, what is the name of Harry's owl?", options: ["Errol", "Hedwig", "Pigwidgeon", "Fawkes"], correctAnswerIndex: 1, category: "Pop Culture", difficulty: "easy" },
+  { id: 22, question: "What is the highest-grossing film of all time (unadjusted)?", options: ["Avengers: Endgame", "Avatar", "Titanic", "Star Wars: The Force Awakens"], correctAnswerIndex: 1, category: "Pop Culture", difficulty: "medium" },
+  { id: 23, question: "Which streaming series is set in the fictional country of Westeros?", options: ["The Witcher", "Game of Thrones", "Wheel of Time", "Shadow and Bone"], correctAnswerIndex: 1, category: "Pop Culture", difficulty: "easy" },
+
+  // Technology
+  { id: 24, question: "What does 'HTTP' stand for?", options: ["HyperText Transfer Protocol", "High Tech Transfer Program", "Hyper Terminal Text Protocol", "Home Tool Transfer Protocol"], correctAnswerIndex: 0, category: "Technology", difficulty: "medium" },
+  { id: 25, question: "Who co-founded Apple Computer with Steve Jobs?", options: ["Bill Gates", "Steve Wozniak", "Paul Allen", "Tim Cook"], correctAnswerIndex: 1, category: "Technology", difficulty: "medium" },
+  { id: 26, question: "What programming language is known as the 'language of the web'?", options: ["Python", "Java", "JavaScript", "C++"], correctAnswerIndex: 2, category: "Technology", difficulty: "easy" },
+  { id: 27, question: "In what year was the first iPhone released?", options: ["2005", "2006", "2007", "2008"], correctAnswerIndex: 2, category: "Technology", difficulty: "medium" },
+  { id: 28, question: "What does 'CPU' stand for?", options: ["Central Processing Unit", "Computer Personal Unit", "Central Program Utility", "Core Processing Unit"], correctAnswerIndex: 0, category: "Technology", difficulty: "easy" },
+
+  // Nature
+  { id: 29, question: "What is the largest land animal?", options: ["White Rhino", "Elephant", "Hippopotamus", "Giraffe"], correctAnswerIndex: 1, category: "Nature", difficulty: "easy" },
+  { id: 30, question: "How many hearts does an octopus have?", options: ["1", "2", "3", "4"], correctAnswerIndex: 2, category: "Nature", difficulty: "medium" },
+  { id: 31, question: "What is the fastest land animal?", options: ["Cheetah", "Greyhound", "Pronghorn", "Lion"], correctAnswerIndex: 0, category: "Nature", difficulty: "easy" },
+  { id: 32, question: "Which bird can fly backwards?", options: ["Hummingbird", "Kingfisher", "Swift", "Woodpecker"], correctAnswerIndex: 0, category: "Nature", difficulty: "medium" },
+  { id: 33, question: "What is the largest species of shark?", options: ["Great White", "Hammerhead", "Whale Shark", "Tiger Shark"], correctAnswerIndex: 2, category: "Nature", difficulty: "medium" },
+  { id: 34, question: "How long can a crocodile hold its breath underwater?", options: ["5 minutes", "15 minutes", "30 minutes", "2 hours"], correctAnswerIndex: 3, category: "Nature", difficulty: "hard" },
+  { id: 35, question: "What is a group of lions called?", options: ["Pack", "Herd", "Pride", "Flock"], correctAnswerIndex: 2, category: "Nature", difficulty: "easy" }
+];
+
+// ============================================================
+// STORAGE LAYER — Swappable. Currently localStorage.
+// Replace with Firebase/Supabase calls later by editing
+// saveUserData() and loadUserData() only.
+// ============================================================
+
+const DEFAULT_USER_DATA = {
+  coins: 50,
+  currentStreak: 0,
+  bestStreak: 0,
+  lastPlayedDate: null,
+  hints: 0,
+  streakFreeze: false,
+  freezeUsed: false,
+  totalGamesPlayed: 0,
+  totalCorrect: 0,
+  quizHistory: []
+};
+
+/**
+ * Gets today's date as a UTC string "YYYY-MM-DD" for consistent
+ * day comparison across timezones.
+ */
+function getTodayUTC() {
+  const now = new Date();
+  return now.getUTCFullYear() + '-' +
+    String(now.getUTCMonth() + 1).padStart(2, '0') + '-' +
+    String(now.getUTCDate()).padStart(2, '0');
+}
+
+/**
+ * Load user data from localStorage. Returns a copy of DEFAULT_USER_DATA
+ * if nothing is stored or if localStorage throws (private browsing).
+ */
+function loadUserData() {
+  try {
+    const raw = localStorage.getItem('trivia_user_data');
+    if (!raw) return { ...DEFAULT_USER_DATA };
+    const parsed = JSON.parse(raw);
+    // Merge with defaults in case new fields were added
+    return { ...DEFAULT_USER_DATA, ...parsed };
+  } catch (e) {
+    console.warn('loadUserData fallback:', e);
+    return { ...DEFAULT_USER_DATA };
+  }
+}
+
+/**
+ * Save user data to localStorage. Wrapped in try/catch for
+ * private browsing mode.
+ */
+function saveUserData(data) {
+  try {
+    localStorage.setItem('trivia_user_data', JSON.stringify(data));
+  } catch (e) {
+    console.warn('saveUserData error:', e);
+  }
+}
+
+// ============================================================
+// TELEGRAM INTEGRATION
+// ============================================================
+
+let tgUser = null;
+
+/**
+ * Initialize the Telegram WebApp. Calls ready() and expand(),
+ * and extracts user data. Falls back to a test user if not
+ * running inside Telegram.
+ */
+function initTelegram() {
+  if (typeof Telegram !== 'undefined' && Telegram.WebApp) {
+    Telegram.WebApp.ready();
+    Telegram.WebApp.expand();
+
+    // Apply theme params
+    applyThemeParams();
+
+    try {
+      const user = Telegram.WebApp.initDataUnsafe?.user;
+      if (user) {
+        tgUser = {
+          id: user.id,
+          firstName: user.first_name,
+          lastName: user.last_name || '',
+          username: user.username || '',
+          photoUrl: user.photo_url || ''
+        };
+      }
+    } catch (e) {
+      console.warn('Could not read Telegram user:', e);
+    }
+  }
+
+  // Fallback test user if outside Telegram
+  if (!tgUser) {
+    tgUser = {
+      id: 123456789,
+      firstName: 'Test',
+      lastName: 'User',
+      username: 'testuser',
+      photoUrl: ''
+    };
+  }
+}
+
+/**
+ * Apply Telegram's theme params to CSS custom properties
+ * so the app matches light/dark mode.
+ */
+function applyThemeParams() {
+  try {
+    const tp = Telegram.WebApp.themeParams;
+    if (!tp) return;
+
+    const root = document.documentElement;
+    if (tp.bg_color) root.style.setProperty('--bg', tp.bg_color);
+    if (tp.text_color) root.style.setProperty('--text', tp.text_color);
+    if (tp.hint_color) root.style.setProperty('--text-secondary', tp.hint_color);
+    if (tp.button_color) root.style.setProperty('--accent', tp.button_color);
+    if (tp.secondary_bg_color) root.style.setProperty('--bg-secondary', tp.secondary_bg_color);
+    if (tp.card_bg_color) root.style.setProperty('--card-bg', tp.card_bg_color);
+  } catch (e) {
+    console.warn('Theme apply error:', e);
+  }
+}
+
+// ============================================================
+// STREAK & MULTIPLIER LOGIC
+// ============================================================
+
+/**
+ * Calculate the streak multiplier based on current streak days.
+ *
+ * Streak 1-2 days: x1
+ * Streak 3-6 days: x1.5
+ * Streak 7-13 days: x2
+ * Streak 14+ days: x3
+ */
+function getStreakMultiplier(streak) {
+  if (streak >= 14) return 3;
+  if (streak >= 7) return 2;
+  if (streak >= 3) return 1.5;
+  return 1;
+}
+
+/**
+ * Format multiplier for display (e.g., 1.5 → "x1.5").
+ */
+function formatMultiplier(mult) {
+  return 'x' + (mult % 1 === 0 ? mult.toFixed(0) : mult.toFixed(1));
+}
+
+/**
+ * Check if two date strings are consecutive days (UTC).
+ * Returns true if `prev` is exactly one day before `today`.
+ */
+function isConsecutiveDay(prev, today) {
+  if (!prev) return false;
+  const d1 = new Date(prev + 'T00:00:00Z');
+  const d2 = new Date(today + 'T00:00:00Z');
+  const diffMs = d2 - d1;
+  const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
+  return diffDays === 1;
+}
+
+/**
+ * Process streak update after a quiz attempt.
+ * - If the user played yesterday (consecutive), increment streak.
+ * - If the user played today already (shouldn't happen, but safety), no change.
+ * - If the user missed more than one day AND has no streak freeze, reset streak.
+ * - If streak freeze is active and was used, protect the streak once.
+ *
+ * Returns the updated streak values (does NOT save — caller must save).
+ */
+function processStreak(userData, correctCount) {
+  const today = getTodayUTC();
+  const played = correctCount > 0; // At least 1 correct counts as "completed"
+
+  let { currentStreak, bestStreak, lastPlayedDate, streakFreeze, freezeUsed } = userData;
+
+  if (played) {
+    if (!lastPlayedDate) {
+      // First time playing ever
+      currentStreak = 1;
+    } else if (lastPlayedDate === today) {
+      // Already played today — no streak change
+    } else if (isConsecutiveDay(lastPlayedDate, today)) {
+      // Consecutive day — extend streak
+      currentStreak += 1;
+    } else {
+      // Missed at least one day
+      if (streakFreeze && !freezeUsed) {
+        // Freeze protects this one gap — use it
+        currentStreak += 1;
+        freezeUsed = true;
+        streakFreeze = false; // Consumed
+      } else {
+        // Streak broken, start fresh
+        currentStreak = 1;
+      }
+    }
+  } else {
+    // Answered 0 correctly — streak is broken
+    if (lastPlayedDate && lastPlayedDate !== today) {
+      if (streakFreeze && !freezeUsed) {
+        // Freeze protects even 0-correct days (user still "played")
+        currentStreak += 1;
+        freezeUsed = true;
+        streakFreeze = false;
+      } else {
+        currentStreak = 0;
+      }
+    }
+  }
+
+  // Update best streak if current exceeds it
+  if (currentStreak > bestStreak) {
+    bestStreak = currentStreak;
+  }
+
+  return {
+    currentStreak,
+    bestStreak,
+    lastPlayedDate: today,
+    streakFreeze,
+    freezeUsed
+  };
+}
+
+// ============================================================
+// COUNTDOWN TIMER
+// ============================================================
+
+let countdownInterval = null;
+
+/**
+ * Calculate and display time until next quiz day (UTC midnight).
+ */
+function startCountdown() {
+  updateCountdown();
+  countdownInterval = setInterval(updateCountdown, 1000);
+}
+
+function clearCountdown() {
+  if (countdownInterval) {
+    clearInterval(countdownInterval);
+    countdownInterval = null;
+  }
+}
+
+function updateCountdown() {
+  const now = new Date();
+  // Next UTC midnight
+  const tomorrow = new Date(Date.UTC(
+    now.getUTCFullYear(),
+    now.getUTCMonth(),
+    now.getUTCDate() + 1,
+    0, 0, 0
+  ));
+  const diff = tomorrow - now;
+
+  if (diff <= 0) {
+    clearCountdown();
+    document.getElementById('countdown-text').textContent = 'Quiz is available now!';
+    document.getElementById('play-btn').disabled = false;
+    return;
+  }
+
+  const hours = Math.floor(diff / (1000 * 60 * 60));
+  const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+  const secs = Math.floor((diff % (1000 * 60)) / 1000);
+
+  document.getElementById('countdown-text').textContent =
+    `Next quiz in ${hours}h ${mins}m ${secs}s`;
+}
+
+// ============================================================
+// QUESTION SELECTION
+// ============================================================
+
+/**
+ * Select 5 random questions from the bank, avoiding duplicates.
+ */
+function selectQuestions() {
+  const shuffled = [...QUESTION_BANK].sort(() => Math.random() - 0.5);
+  return shuffled.slice(0, 5);
+}
+
+// ============================================================
+// QUIZ STATE & TIMER
+// ============================================================
+
+let quizState = {
+  questions: [],
+  currentIndex: 0,
+  score: 0,
+  pointsEarned: 0,
+  answers: [],
+  hintsUsed: 0,
+  questionTimer: null,
+  timeLeft: 15,
+  answered: false
+};
+
+const QUESTION_TIME = 15; // seconds per question
+
+/**
+ * Start the quiz. Transitions to quiz screen.
+ */
+function startQuiz() {
+  const userData = loadUserData();
+  const today = getTodayUTC();
+
+  if (userData.lastPlayedDate === today) {
+    showToast("You've already played today! Come back tomorrow.");
+    return;
+  }
+
+  clearCountdown();
+
+  quizState = {
+    questions: selectQuestions(),
+    currentIndex: 0,
+    score: 0,
+    pointsEarned: 0,
+    answers: [],
+    hintsUsed: 0,
+    questionTimer: null,
+    timeLeft: QUESTION_TIME,
+    answered: false
+  };
+
+  showScreen('quiz');
+  renderQuestion();
+}
+
+/**
+ * Render the current question and its options.
+ */
+function renderQuestion() {
+  const q = quizState.questions[quizState.currentIndex];
+  quizState.answered = false;
+  quizState.timeLeft = QUESTION_TIME;
+
+  document.getElementById('quiz-progress').textContent =
+    `${quizState.currentIndex + 1} / ${quizState.questions.length}`;
+  document.getElementById('q-category').textContent = q.category;
+  document.getElementById('q-text').textContent = q.question;
+
+  // Update hint button state
+  const userData = loadUserData();
+  const hintBtn = document.getElementById('use-hint-btn');
+  hintBtn.disabled = userData.hints <= 0;
+  hintBtn.textContent = `💡 Hint (${userData.hints})`;
+
+  // Render options
+  const grid = document.getElementById('options-grid');
+  grid.innerHTML = '';
+  const labels = ['A', 'B', 'C', 'D'];
+
+  q.options.forEach((opt, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'option-btn';
+    btn.dataset.index = i;
+    btn.innerHTML = `<span class="option-label">${labels[i]}</span><span>${opt}</span>`;
+    btn.onclick = () => selectAnswer(i);
+    grid.appendChild(btn);
+  });
+
+  // Start timer
+  startQuestionTimer();
+}
+
+/**
+ * Start the 15-second countdown for the current question.
+ */
+function startQuestionTimer() {
+  clearQuestionTimer();
+
+  const timerText = document.getElementById('timer-text');
+  const timerProgress = document.getElementById('timer-progress');
+  const timerEl = document.getElementById('quiz-timer');
+  const circumference = 2 * Math.PI * 21; // r=21 from SVG
+
+  timerProgress.style.strokeDasharray = circumference;
+  timerProgress.style.strokeDashoffset = 0;
+  timerProgress.classList.remove('warning');
+  timerEl.classList.remove('warning');
+
+  quizState.timeLeft = QUESTION_TIME;
+  timerText.textContent = quizState.timeLeft;
+
+  quizState.questionTimer = setInterval(() => {
+    quizState.timeLeft--;
+    timerText.textContent = Math.max(0, quizState.timeLeft);
+
+    // Update ring progress
+    const progress = (1 - quizState.timeLeft / QUESTION_TIME) * circumference;
+    timerProgress.style.strokeDashoffset = progress;
+
+    // Warning state at 5 seconds
+    if (quizState.timeLeft <= 5) {
+      timerProgress.classList.add('warning');
+      timerEl.classList.add('warning');
+    }
+
+    // Time's up
+    if (quizState.timeLeft <= 0) {
+      clearQuestionTimer();
+      if (!quizState.answered) {
+        // Auto-submit as wrong
+        timeUp();
+      }
+    }
+  }, 1000);
+}
+
+function clearQuestionTimer() {
+  if (quizState.questionTimer) {
+    clearInterval(quizState.questionTimer);
+    quizState.questionTimer = null;
+  }
+}
+
+/**
+ * Handle time running out on a question.
+ */
+function timeUp() {
+  quizState.answered = true;
+  const q = quizState.questions[quizState.currentIndex];
+
+  // Mark all options as disabled, highlight correct
+  const buttons = document.querySelectorAll('.option-btn');
+  buttons.forEach((btn, i) => {
+    btn.disabled = true;
+    if (i === q.correctAnswerIndex) {
+      btn.classList.add('correct');
+    }
+  });
+
+  quizState.answers.push({ selected: -1, correct: false });
+
+  // Move to next after delay
+  setTimeout(() => nextQuestion(), 1200);
+}
+
+/**
+ * Handle user selecting an answer.
+ */
+function selectAnswer(index) {
+  if (quizState.answered) return;
+  quizState.answered = true;
+  clearQuestionTimer();
+
+  const q = quizState.questions[quizState.currentIndex];
+  const isCorrect = index === q.correctAnswerIndex;
+
+  // Visual feedback
+  const buttons = document.querySelectorAll('.option-btn');
+  buttons.forEach((btn, i) => {
+    btn.disabled = true;
+    if (i === q.correctAnswerIndex) btn.classList.add('correct');
+    if (i === index && !isCorrect) btn.classList.add('wrong');
+  });
+
+  if (isCorrect) {
+    quizState.score++;
+    // Trigger haptic if available
+    if (typeof Telegram !== 'undefined' && Telegram.WebApp?.HapticFeedback) {
+      Telegram.WebApp.HapticFeedback.notificationOccurred('success');
+    }
+  } else {
+    if (typeof Telegram !== 'undefined' && Telegram.WebApp?.HapticFeedback) {
+      Telegram.WebApp.HapticFeedback.notificationOccurred('error');
+    }
+  }
+
+  quizState.answers.push({ selected: index, correct: isCorrect });
+
+  setTimeout(() => nextQuestion(), 1200);
+}
+
+/**
+ * Move to the next question or finish the quiz.
+ */
+function nextQuestion() {
+  quizState.currentIndex++;
+
+  if (quizState.currentIndex >= quizState.questions.length) {
+    finishQuiz();
+  } else {
+    renderQuestion();
+  }
+}
+
+/**
+ * Use a hint — removes 2 wrong answers. Costs 15 coins (bought from shop).
+ */
+function useHint() {
+  if (quizState.answered) return;
+
+  const userData = loadUserData();
+  if (userData.hints <= 0) {
+    showToast("No hints left! Buy more in the shop.");
+    return;
+  }
+
+  userData.hints--;
+  saveUserData(userData);
+
+  const q = quizState.questions[quizState.currentIndex];
+  const wrongIndices = [];
+
+  q.options.forEach((_, i) => {
+    if (i !== q.correctAnswerIndex) wrongIndices.push(i);
+  });
+
+  // Shuffle and pick 2 to eliminate
+  wrongIndices.sort(() => Math.random() - 0.5);
+  const toEliminate = wrongIndices.slice(0, 2);
+
+  const buttons = document.querySelectorAll('.option-btn');
+  toEliminate.forEach(i => {
+    buttons[i].classList.add('eliminated');
+    buttons[i].disabled = true;
+  });
+
+  // Update hint count display
+  const hintBtn = document.getElementById('use-hint-btn');
+  hintBtn.disabled = userData.hints <= 0;
+  hintBtn.textContent = `💡 Hint (${userData.hints})`;
+
+  quizState.hintsUsed++;
+  showToast("2 wrong answers removed!");
+}
+
+// ============================================================
+// FINISH QUIZ & RESULTS
+// ============================================================
+
+/**
+ * Complete the quiz, calculate points, update streak, and show results.
+ */
+function finishQuiz() {
+  clearQuestionTimer();
+
+  const userData = loadUserData();
+  const { currentStreak, bestStreak, lastPlayedDate, streakFreeze, freezeUsed } =
+    processStreak(userData, quizState.score);
+
+  // Calculate points: correct answers * 10 * multiplier
+  const multiplier = getStreakMultiplier(currentStreak);
+  const pointsEarned = quizState.score * 10 * multiplier;
+
+  // Update user data
+  const updatedData = {
+    ...userData,
+    coins: userData.coins + pointsEarned,
+    currentStreak,
+    bestStreak,
+    lastPlayedDate: getTodayUTC(),
+    streakFreeze,
+    freezeUsed,
+    totalGamesPlayed: userData.totalGamesPlayed + 1,
+    totalCorrect: userData.totalCorrect + quizState.score,
+    quizHistory: [
+      ...userData.quizHistory,
+      {
+        date: getTodayUTC(),
+        score: quizState.score,
+        points: pointsEarned,
+        multiplier
+      }
+    ].slice(-30) // Keep last 30 games
+  };
+
+  saveUserData(updatedData);
+
+  // Store results for display
+  quizState.pointsEarned = pointsEarned;
+
+  // Show results
+  showResults(quizState.score, pointsEarned, currentStreak, multiplier);
+
+  // Show confetti if perfect score
+  if (quizState.score === 5) {
+    setTimeout(() => showConfetti(), 300);
+  }
+}
+
+/**
+ * Render the results screen.
+ */
+function showResults(score, points, streak, multiplier) {
+  showScreen('results');
+
+  const emojis = ['😢', '😐', '🙂', '😊', '🎉', '🏆'];
+  document.getElementById('results-emoji').textContent = emojis[score] || '🙂';
+  document.getElementById('results-score').innerHTML = `${score}<span>/5</span>`;
+  document.getElementById('results-points').textContent = `+${points} points`;
+  document.getElementById('res-correct').textContent = score;
+  document.getElementById('res-streak').textContent = streak;
+  document.getElementById('res-mult').textContent = formatMultiplier(multiplier);
+
+  // Trigger haptic
+  if (typeof Telegram !== 'undefined' && Telegram.WebApp?.HapticFeedback) {
+    Telegram.WebApp.HapticFeedback.notificationOccurred(score >= 3 ? 'success' : 'warning');
+  }
+}
+
+// ============================================================
+// SHARE FUNCTIONALITY
+// ============================================================
+
+/**
+ * Share result to Telegram using switchInlineQuery or fallback text.
+ */
+function shareResult() {
+  const userData = loadUserData();
+  const text = `🔥 Daily Trivia Streak Quiz\n\n` +
+    `Score: ${quizState.score}/5\n` +
+    `Points: +${quizState.pointsEarned}\n` +
+    `Streak: ${userData.currentStreak} days\n` +
+    `Multiplier: ${formatMultiplier(getStreakMultiplier(userData.currentStreak))}\n\n` +
+    `Can you beat my streak? Play now!`;
+
+  if (typeof Telegram !== 'undefined' && Telegram.WebApp) {
+    try {
+      // Try switchInlineQuery first
+      Telegram.WebApp.switchInlineQuery(text, ['users', 'groups', 'channels']);
+    } catch (e) {
+      // Fallback: use shareMessage or just show the text
+      try {
+        if (Telegram.WebApp.shareMessage) {
+          // Generate shareable text
+          Telegram.WebApp.switchInlineQuery(text);
+        }
+      } catch (e2) {
+        // Final fallback: copy to clipboard
+        copyToClipboard(text);
+        showToast("Result copied to clipboard!");
+      }
+    }
+  } else {
+    copyToClipboard(text);
+    showToast("Result copied to clipboard!");
+  }
+}
+
+/**
+ * Copy text to clipboard (fallback).
+ */
+function copyToClipboard(text) {
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(text).catch(() => {});
+  } else {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.left = '-9999px';
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); } catch(e) {}
+    document.body.removeChild(ta);
+  }
+}
+
+// ============================================================
+// SHOP
+// ============================================================
+
+/**
+ * Buy a hint (costs 15 coins, gives 1 hint usable during quiz).
+ */
+function buyHint() {
+  const userData = loadUserData();
+  if (userData.coins < 15) {
+    showToast("Not enough coins! Play more quizzes.");
+    return;
+  }
+
+  userData.coins -= 15;
+  userData.hints += 1;
+  saveUserData(userData);
+
+  showToast("💡 Hint purchased!");
+  renderHome();
+
+  if (typeof Telegram !== 'undefined' && Telegram.WebApp?.HapticFeedback) {
+    Telegram.WebApp.HapticFeedback.impactOccurred('medium');
+  }
+}
+
+/**
+ * Buy streak freeze (costs 50 coins, protects streak for one missed day).
+ */
+function buyFreeze() {
+  const userData = loadUserData();
+  if (userData.streakFreeze) {
+    showToast("You already have a Streak Freeze active!");
+    return;
+  }
+  if (userData.coins < 50) {
+    showToast("Not enough coins! Play more quizzes.");
+    return;
+  }
+
+  userData.coins -= 50;
+  userData.streakFreeze = true;
+  userData.freezeUsed = false;
+  saveUserData(userData);
+
+  showToast("🧊 Streak Freeze activated!");
+  renderHome();
+
+  if (typeof Telegram !== 'undefined' && Telegram.WebApp?.HapticFeedback) {
+    Telegram.WebApp.HapticFeedback.impactOccurred('medium');
+  }
+}
+
+// ============================================================
+// LEADERBOARD (mock data, structured for backend swap)
+// ============================================================
+
+const MOCK_LEADERBOARD = [
+  { name: "Alex K.", streak: 42, score: 3200 },
+  { name: "Maria S.", streak: 28, score: 2100 },
+  { name: "John D.", streak: 21, score: 1850 },
+  { name: "Sarah L.", streak: 15, score: 1200 },
+  { name: "Mike T.", streak: 12, score: 980 }
+];
+
+/**
+ * Render the leaderboard. Current user is injected into the list.
+ * In production, replace MOCK_LEADERBOARD with a backend fetch.
+ */
+function renderLeaderboard() {
+  const userData = loadUserData();
+  const currentUser = {
+    name: tgUser.firstName + (tgUser.lastName ? ' ' + tgUser.lastName : ''),
+    streak: userData.currentStreak,
+    score: userData.coins,
+    isUser: true
+  };
+
+  // Merge and sort by streak, then by score
+  let entries = [...MOCK_LEADERBOARD.map(e => ({ ...e, isUser: false }))];
+  entries.push(currentUser);
+  entries.sort((a, b) => b.streak - a.streak || b.score - a.score);
+  entries = entries.slice(0, 5);
+
+  const container = document.getElementById('leaderboard-list');
+  container.innerHTML = '';
+
+  entries.forEach((entry, i) => {
+    const item = document.createElement('div');
+    item.className = 'leaderboard-item';
+
+    let rankClass = '';
+    if (i === 0) rankClass = 'gold';
+    else if (i === 1) rankClass = 'silver';
+    else if (i === 2) rankClass = 'bronze';
+
+    item.innerHTML = `
+      <div class="lb-rank ${rankClass}">${i + 1}</div>
+      <div class="lb-name">${entry.isUser ? '⭐ You' : entry.name}</div>
+      <div class="lb-score">🔥 ${entry.streak}</div>
+    `;
+
+    container.appendChild(item);
+  });
+}
+
+// ============================================================
+// UI HELPERS
+// ============================================================
+
+function showScreen(name) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('screen-' + name).classList.add('active');
+}
+
+function renderHome() {
+  const userData = loadUserData();
+  const multiplier = getStreakMultiplier(userData.currentStreak);
+  const today = getTodayUTC();
+  const hasPlayed = userData.lastPlayedDate === today;
+
+  // User info
+  document.getElementById('user-name').textContent =
+    tgUser.firstName + (tgUser.lastName ? ' ' + tgUser.lastName : '');
+  document.getElementById('user-handle').textContent =
+    tgUser.username ? '@' + tgUser.username : 'ID: ' + tgUser.id;
+
+  // Avatar
+  const avatarEl = document.getElementById('user-avatar');
+  if (tgUser.photoUrl) {
+    avatarEl.innerHTML = `<img src="${tgUser.photoUrl}" alt="avatar">`;
+  } else {
+    avatarEl.textContent = tgUser.firstName.charAt(0).toUpperCase();
+  }
+
+  // Stats
+  document.getElementById('home-coins').textContent = userData.coins;
+  document.getElementById('home-streak').textContent = userData.currentStreak;
+  document.getElementById('home-multiplier').textContent = formatMultiplier(multiplier);
+
+  // Multiplier badge visibility
+  const badge = document.getElementById('home-mult-badge');
+  if (multiplier > 1) {
+    badge.style.display = 'inline-block';
+    badge.textContent = multiplier >= 3 ? 'MAX' : 'Active';
+  } else {
+    badge.style.display = 'none';
+  }
+
+  // Play button
+  const playBtn = document.getElementById('play-btn');
+  if (hasPlayed) {
+    playBtn.disabled = true;
+    playBtn.textContent = '✓ Already Played Today';
+    startCountdown();
+  } else {
+    playBtn.disabled = false;
+    playBtn.textContent = '▶ Play Today\'s Quiz';
+    document.getElementById('countdown-text').textContent = '';
+    clearCountdown();
+  }
+
+  // Shop
+  document.getElementById('hint-count').textContent =
+    userData.hints > 0 ? `${userData.hints} owned` : '';
+  document.getElementById('freeze-status').textContent =
+    userData.streakFreeze ? (userData.freezeUsed ? 'Used' : 'Active ✓') : '';
+
+  // Leaderboard
+  renderLeaderboard();
+}
+
+function goHome() {
+  clearQuestionTimer();
+  showScreen('home');
+  renderHome();
+}
+
+function showToast(message) {
+  const toast = document.getElementById('toast');
+  toast.textContent = message;
+  toast.classList.add('show');
+  setTimeout(() => toast.classList.remove('show'), 2500);
+}
+
+function showConfetti() {
+  const container = document.getElementById('confetti-container');
+  container.innerHTML = '';
+  const colors = ['#ff6b35', '#ffc107', '#4caf50', '#3390ec', '#e91e63', '#9c27b0'];
+
+  for (let i = 0; i < 40; i++) {
+    const piece = document.createElement('div');
+    piece.className = 'confetti-piece';
+    piece.style.left = Math.random() * 100 + '%';
+    piece.style.top = Math.random() * 60 + 20 + '%';
+    piece.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+    piece.style.animationDelay = Math.random() * 0.5 + 's';
+    piece.style.animationDuration = (1 + Math.random()) + 's';
+    piece.style.width = (6 + Math.random() * 8) + 'px';
+    piece.style.height = (6 + Math.random() * 8) + 'px';
+    container.appendChild(piece);
+  }
+
+  setTimeout(() => container.innerHTML = '', 3000);
+}
+
+// ============================================================
+// INITIALIZATION
+// ============================================================
+
+document.addEventListener('DOMContentLoaded', () => {
+  initTelegram();
+  renderHome();
+});
+
+// Clean up timers if the page is hidden/closed
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    clearQuestionTimer();
+  }
+});
+
+window.addEventListener('beforeunload', () => {
+  clearQuestionTimer();
+  clearCountdown();
+});
+</script>
+
+</body>
+</html>
